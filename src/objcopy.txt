@@ -1,0 +1,1 @@
+objcopy -O binary a.out -I elf32-little
