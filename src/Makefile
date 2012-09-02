@@ -5,7 +5,7 @@ OBJECTS=app.o as.o symbols.o messages.o read.o listing.o frags.o expr.o subsegs.
 	input-file.o output-file.o listing.o compress-debug.o ecoff.o ehopt.o dwarf2dbg.o \
 	dw2gencfi.o atof-generic.o flonum-konst.o flonum-copy.o flonum-mult.o \
 	config/tc-st8.o config/atof-ieee.o config/obj-elf.o
-CFLAGS=-DHAVE_STDLIB_H -DHAVE_STRING_H -DSTM8 -DHAVE_ERRNO_H -I../include/
+CFLAGS=-DHAVE_STDLIB_H -DHAVE_STRING_H -DSTM8 -DHAVE_ERRNO_H -I../include/ -g -O0
 LDFLAGS=-lbfd -liberty -zmuldefs
 BINARY=stm8-as
 
