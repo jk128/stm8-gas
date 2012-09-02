@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "tc-st8.h"
 #include "../as.h"
 
@@ -13,6 +14,7 @@ struct stm8_opcodes_s
 struct stm8_opcodes_s stm8_opcodes[] =
 {
   #include "opcode/stm8.h"
+  {NULL, {ST8_END}, 0, 0},
 };
 
 static struct hash_control *stm8_hash;
@@ -223,11 +225,6 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
   abort ();
 }
 
-typedef struct {
-	stm8_arg_t type;
-	unsigned int value;
-} stm8_tokens_t;
-
 int split_words(char *str, char **chunks) {
 	int ret = 0;
 	const char delim[] = ", ";
@@ -263,45 +260,71 @@ int gethex(const char *str, int *out) {
 }
 
 /* In: argument
-   Out: 1 on success
-   Modifies: ret */
-int tokenize_arg(char *str, stm8_tokens_t *ret) {
+   Out: value
+   Modifies: type */
+int read_arg(char *str, stm8_arg_t *type) {
 	/* There is a number of addressing modes in ST8 architecture.
 	   We need to properly handle each of them in order to find a proper opcode. */
-	#define RETURN(x) (x); return 1;
+	#define RETURN(x) (x); return value;
+	int value;
 	int length = strlen(str);
-	if(getnumber(str, &ret->value)) { RETURN(ret->type = ST8_BYTE); }
+	if(getnumber(str, &value)) { RETURN(*type = ST8_BYTE); }
 
 	if(memcmp(str, "0x", 2) || memcmp(str, "#$", 2)) {
-		if(length <= 2)	ret->type = ST8_BYTE;
-		if(length >= 3)	ret->type = ST8_WORD;
-		if(gethex(str+2, &ret->value))
-			return(1);
+		if(length <= 2)	*type = ST8_BYTE;
+		if(length >= 3)	*type = ST8_WORD;
+		if(gethex(str+2, &value))
+			return(value);
 	}
 
 	if(str[0] == '$') {
-		if(length <= 2)	ret->type = ST8_SHORTMEM;
-		if(length >= 3)	ret->type = ST8_LONGMEM;
-		if(length >= 5)	ret->type = ST8_EXTMEM;
-		if(gethex(str+1, &ret->value))
-			return(1);
+		if(length <= 2)	*type = ST8_SHORTMEM;
+		if(length >= 3)	*type = ST8_LONGMEM;
+		if(length >= 5)	*type = ST8_EXTMEM;
+		if(gethex(str+1, &value))
+			return(value);
 	}
+
+	if(!strcmp(str, "A")) { RETURN(*type = ST8_REG_A); }
+	if(!strcmp(str, "X")) { RETURN(*type = ST8_REG_X); }
+	if(!strcmp(str, "Y")) { RETURN(*type = ST8_REG_Y); }
+
+	*type = ST8_END;
 	return(0);
 }
 
-int tokenize_args(char *str, stm8_tokens_t *ptr) {
+int read_args(char *str, stm8_arg_t *types, int *values) {
 	char *chunks[2];
 	int count = split_words(str, chunks);
 	int i;
 	for(i = 0; i < count; i++) {
-		int ret = tokenize_arg(chunks[i], &(ptr[i]));
-		if(!ret) as_bad("Couldn't parse chunk: %s", chunks[i]);
+		int ret = read_arg(chunks[i], &(types[i]));
+		if(types[i] == ST8_END) as_bad("Couldn't parse chunk: %s", chunks[i]);
+		values[i] = ret;
 	}
 	return(count);
 }
 
-struct stm8_opcodes_s *find_opcode(const char *name, stm8_tokens_t *tokens) {
-	return(hash_find(stm8_hash, name));
+void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
+	int i;
+	for(i = 0; i < count; i++) {
+		switch(spec[i]) {
+			/* Some of token types are for data output.
+			   The other ones are used when searching opcode. */
+			case ST8_SHORTMEM:
+			case ST8_BYTE:
+				bfd_putl16(values[i], frag);
+				break;
+			case ST8_LONGMEM:
+			case ST8_WORD:
+				bfd_putb16(values[i], frag);
+				break;
+			case ST8_EXTMEM:
+				bfd_put_bits(values[i], frag, 8, true);
+				break;
+		}
+		frag++;
+	}
 }
 
 /* This is the guts of the machine-dependent assembler.  STR points to a
@@ -315,19 +338,25 @@ char op[11];
 
 	struct stm8_opcodes_s *opcode;
 	str = skip_space (extract_word (str, op, sizeof (op)));
-	as_warn("op=%s str=%s\n", op, str);
-	stm8_tokens_t tokens[2];
-	tokenize_args(str, tokens);
-	return;
+	stm8_arg_t spec[2];
+	int values[2];
+	int count = read_args(str, spec, values);
 	opcode = (struct stm8_opcodes_s *) hash_find (stm8_hash, op);
 
-	if (opcode == NULL)
-	{
+	if (opcode == NULL) {
 		as_bad (_("unknown opcode `%s'"), op);
 		return;
 	}
 
-	unsigned int data;
-	char *frag = frag_more(opcode->insn_size);
-	bfd_putl16(opcode->bin_opcode, frag);
+	int i;
+	for(i = 0; opcode[i].name != NULL; i++) {
+		if(!strcmp(opcode[i].constraints, spec)) {
+			char *frag = frag_more(opcode->insn_size);
+			bfd_putl16(opcode->bin_opcode, frag);
+			stm8_bfd_out(spec, values, count, frag);
+			break;
+		}
+	}
+	if(!opcode[i].name)
+		as_bad("Couldn't match");
 }
