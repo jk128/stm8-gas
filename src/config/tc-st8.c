@@ -271,16 +271,16 @@ int read_arg(char *str, stm8_arg_t *type) {
 	if(getnumber(str, &value)) { RETURN(*type = ST8_BYTE); }
 
 	if(memcmp(str, "0x", 2) || memcmp(str, "#$", 2)) {
-		if(length <= 2)	*type = ST8_BYTE;
-		if(length >= 3)	*type = ST8_WORD;
+		if(length-2 <= 2) *type = ST8_BYTE;
+		if(length-2 >= 3) *type = ST8_WORD;
 		if(gethex(str+2, &value))
 			return(value);
 	}
 
 	if(str[0] == '$') {
-		if(length <= 2)	*type = ST8_SHORTMEM;
-		if(length >= 3)	*type = ST8_LONGMEM;
-		if(length >= 5)	*type = ST8_EXTMEM;
+		if(length-1 <= 2) *type = ST8_SHORTMEM;
+		if(length-1 >= 3) *type = ST8_LONGMEM;
+		if(length-1 >= 5) *type = ST8_EXTMEM;
 		if(gethex(str+1, &value))
 			return(value);
 	}
@@ -313,14 +313,14 @@ void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 			   The other ones are used when searching opcode. */
 			case ST8_SHORTMEM:
 			case ST8_BYTE:
-				bfd_putl16(values[i], frag);
+				bfd_put_bits(values[i], frag, 8, true);
 				break;
 			case ST8_LONGMEM:
 			case ST8_WORD:
 				bfd_putb16(values[i], frag);
 				break;
 			case ST8_EXTMEM:
-				bfd_put_bits(values[i], frag, 8, true);
+				bfd_put_bits(values[i], frag, 24, true);
 				break;
 		}
 		frag++;

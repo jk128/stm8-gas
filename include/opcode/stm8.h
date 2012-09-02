@@ -6,7 +6,7 @@
 {"or", {ST8_SHORTMEM, ST8_END}, 2, 0xBA},
 {"or", {ST8_LONGMEM, ST8_END}, 3, 0xCA},
 /* ld / mov */
-{"ld", {ST8_REG_A, ST8_BYTE, ST8_END}, 3, 0xA6},
+{"ld", {ST8_REG_A, ST8_BYTE, ST8_END}, 2, 0xA6},
 {"ldw", {ST8_REG_X, ST8_WORD, ST8_END}, 3, 0xAE},
 /* comparison / jumps */
 {"cp", {ST8_REG_A, ST8_BYTE, ST8_END}, 3, 0xA1},
