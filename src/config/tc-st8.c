@@ -270,7 +270,7 @@ int read_arg(char *str, stm8_arg_t *type) {
 	int length = strlen(str);
 	if(getnumber(str, &value)) { RETURN(*type = ST8_BYTE); }
 
-	if(memcmp(str, "0x", 2) || memcmp(str, "#$", 2)) {
+	if(!memcmp(str, "0x", 2) || !memcmp(str, "#$", 2)) {
 		if(length-2 <= 2) *type = ST8_BYTE;
 		if(length-2 >= 3) *type = ST8_WORD;
 		if(gethex(str+2, &value))
