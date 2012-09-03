@@ -8,6 +8,7 @@ extern const pseudo_typeS md_pseudo_table[];
 
 typedef enum {
 	ST8_END = 0,
+	ST8_FIXUP,
 	ST8_REG_X,
 	ST8_REG_Y,
 	ST8_BYTE,
@@ -15,7 +16,11 @@ typedef enum {
 	ST8_SHORTMEM,
 	ST8_LONGMEM,
 	ST8_EXTMEM,
+	ST8_SPREL,
+	ST8_PCREL,
 	ST8_REG_A
 } stm8_arg_t;
+
+#define ST8_FIXUP 128
 
 #endif

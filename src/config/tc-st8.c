@@ -289,6 +289,19 @@ int read_arg(char *str, stm8_arg_t *type) {
 	if(!strcmp(str, "X")) { RETURN(*type = ST8_REG_X); }
 	if(!strcmp(str, "Y")) { RETURN(*type = ST8_REG_Y); }
 
+	/* The previous checks failed, trying to parse an expression...
+	   Also, the fixups can be generated here. */
+	input_line_pointer = str;
+	expressionS ex;
+	expression(&ex);
+	if(ex.X_add_symbol) {
+		char *name = S_GET_NAME(ex.X_add_symbol);
+		value = ex.X_add_number;
+		if(!strcmp(name, "SP")) { RETURN(*type = ST8_SPREL); }
+		if(!strcmp(name, "PC")) { RETURN(*type = ST8_PCREL); }
+	}
+
+	/* Can't parse an expression, notifying caller about that. */
 	*type = ST8_END;
 	return(0);
 }
@@ -307,10 +320,17 @@ int read_args(char *str, stm8_arg_t *types, int *values) {
 
 void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 	int i;
+	expressionS exp;
+	exp.X_op = O_constant;
+	int where = frag - frag_now->fr_literal;
 	for(i = 0; i < count; i++) {
 		switch(spec[i]) {
 			/* Some of token types are for data output.
 			   The other ones are used when searching opcode. */
+			case ST8_FIXUP:
+				fix_new_exp(frag, where, 3,
+						&exp, FALSE, BFD_RELOC_32);
+				break;
 			case ST8_SHORTMEM:
 			case ST8_BYTE:
 				bfd_put_bits(values[i], frag, 8, true);
