@@ -299,7 +299,7 @@ int read_args(char *str, stm8_arg_t *types, int *values) {
 	int i;
 	for(i = 0; i < count; i++) {
 		int ret = read_arg(chunks[i], &(types[i]));
-		if(types[i] == ST8_END) as_bad("Couldn't parse chunk: %s", chunks[i]);
+		if(types[i] == ST8_END) as_bad("Invalid operand: %s", chunks[i]);
 		values[i] = ret;
 	}
 	return(count);
@@ -358,5 +358,5 @@ char op[11];
 		}
 	}
 	if(!opcode[i].name)
-		as_bad("Couldn't match");
+		as_bad("Invalid instruction: %s", op);
 }
