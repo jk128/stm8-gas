@@ -1,6 +1,6 @@
 {"nop", {ST8_END}, 1, 0x9D},
 {"incw", {ST8_REG_X, ST8_END}, 1, 0x5C},
-{"incw", {ST8_REG_Y, ST8_END}, 1, 0x905C},
+{"incw", {ST8_REG_Y, ST8_END}, 2, 0x905C},
 /* logical operators */
 {"or", {ST8_REG_A, ST8_BYTE, ST8_END}, 2, 0xAA},
 {"or", {ST8_REG_A, ST8_SPREL, ST8_END}, 2, 0xBA},

@@ -7,7 +7,7 @@ struct stm8_opcodes_s
 {
   char *        name;
   stm8_arg_t    constraints[5];
-  int           insn_size;		/* In words.  */
+  unsigned int insn_size;
   unsigned int  bin_opcode;
 };
 
@@ -226,16 +226,19 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 }
 
 int split_words(char *str, char **chunks) {
-	int ret = 0;
+	int i, max = 2;
 	const char delim[] = ", ";
 	const char *trail;
-	chunks[0] = strtok(str, delim);
-	ret++;
-	if(chunks[0]) chunks[1] = strtok(NULL, delim);
-	if(chunks[1]) ret++;
+	memset(chunks, max, 0);
+	for(i = 0; i < max; i++) {
+		chunks[i] = strtok(str, delim);
+		str = NULL;
+		if(!chunks[i])
+			break;
+	}
 	if(trail = strtok(NULL, delim))
-		fprintf(stderr, "Trailing characters: %s%s", delim, trail);
-	return(ret);
+		as_bad(_("Trailing characters: %s%s"), delim, trail);
+	return(i);
 }
 
 int getnumber(const char *str, int *out) {
@@ -308,6 +311,8 @@ int read_arg(char *str, stm8_arg_t *type) {
 }
 
 int read_args(char *str, stm8_arg_t *types, int *values) {
+	memset(types, 0, sizeof(stm8_arg_t) * 2);
+	memset(values, 0, sizeof(int) * 2);
 	char *chunks[2];
 	int count = split_words(str, chunks);
 	int i;
@@ -350,6 +355,16 @@ void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 	}
 }
 
+/* There are some opcodes that are longer than 1 byte */
+unsigned int bytes_count(unsigned int number) {
+	int i;
+	for(i = sizeof(int); i > 0; i--) {
+		if(number & 0xFF << (i-1)*8)
+			return(i);
+	}
+	return(1);
+}
+
 /* This is the guts of the machine-dependent assembler.  STR points to a
    machine dependent instruction.  This function is supposed to emit
    the frags/bytes it assembles to.  */
@@ -374,8 +389,9 @@ char op[11];
 	int i;
 	for(i = 0; opcode[i].name != NULL; i++) {
 		if(!strcmp(opcode[i].constraints, spec)) {
-			char *frag = frag_more(opcode->insn_size);
-			bfd_putl16(opcode->bin_opcode, frag);
+			char *frag = frag_more(opcode[i].insn_size);
+			int opcode_length = bytes_count(opcode->bin_opcode);
+			bfd_put_bits(opcode->bin_opcode, frag, opcode_length * 8, true);
 			stm8_bfd_out(spec, values, count, frag);
 			break;
 		}
