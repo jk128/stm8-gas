@@ -322,6 +322,7 @@ void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 	int i;
 	expressionS exp;
 	exp.X_op = O_constant;
+	frag++;
 	int where = frag - frag_now->fr_literal;
 	for(i = 0; i < count; i++) {
 		switch(spec[i]) {
@@ -331,6 +332,7 @@ void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 				fix_new_exp(frag, where, 3,
 						&exp, FALSE, BFD_RELOC_32);
 				break;
+			case ST8_SPREL:
 			case ST8_SHORTMEM:
 			case ST8_BYTE:
 				bfd_put_bits(values[i], frag, 8, true);
