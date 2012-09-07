@@ -267,6 +267,7 @@ int read_arg(char *str, stm8_arg_t *type) {
 	   We need to properly handle each of them in order to find a proper opcode. */
 	#define RETURN(x) (x); return value;
 	int value;
+	if(!str) return(ST8_END);
 	int length = strlen(str);
 	if(getnumber(str, &value)) { RETURN(*type = ST8_BYTE); }
 
