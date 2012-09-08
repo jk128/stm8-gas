@@ -156,7 +156,7 @@ md_apply_fix (fixS *fixp, valueT *valp, segT segment ATTRIBUTE_UNUSED) {
 	if(fixp->fx_label) {
 		const char *label_name = S_GET_NAME(fixp->fx_label);
 		symbolS *label = symbol_find(label_name);
-		if(!label) {
+		if(!label || !S_IS_DEFINED(label)) {
 			as_bad(_("Unknown label %s at line %d\n"), label_name, fixp->fx_line);
 			return;
 		}
