@@ -172,6 +172,7 @@ fix_new_internal (fragS *frag,		/* Which frag?  */
       abort ();
     }
   fixP->fx_addsy = add_symbol;
+  fixP->fx_label = add_symbol;
   fixP->fx_subsy = sub_symbol;
   fixP->fx_offset = offset;
   fixP->fx_dot_value = dot_value;

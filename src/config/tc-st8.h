@@ -8,7 +8,7 @@ extern const pseudo_typeS md_pseudo_table[];
 
 typedef enum {
 	ST8_END = 0,
-	ST8_FIXUP,
+	ST8_SYMBOL,
 	ST8_REG_X,
 	ST8_REG_Y,
 	ST8_BYTE,

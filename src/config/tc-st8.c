@@ -7,14 +7,13 @@ struct stm8_opcodes_s
 {
   char *        name;
   stm8_arg_t    constraints[5];
-  unsigned int insn_size;
   unsigned int  bin_opcode;
 };
 
 struct stm8_opcodes_s stm8_opcodes[] =
 {
   #include "opcode/stm8.h"
-  {NULL, {ST8_END}, 0, 0},
+  {NULL, {ST8_END}, 0},
 };
 
 static struct hash_control *stm8_hash;
@@ -154,8 +153,21 @@ md_operand (expressionS * exp)
    we will have to generate a reloc entry.  */
 void
 md_apply_fix (fixS *fixp, valueT *valp, segT segment ATTRIBUTE_UNUSED) {
-	as_bad_where (fixp->fx_file, fixp->fx_line,
+	if(fixp->fx_label) {
+		const char *label_name = S_GET_NAME(fixp->fx_label);
+		symbolS *label = symbol_find(label_name);
+		if(!label) {
+			as_bad(_("Unknown label %s at line %d\n"), label_name, fixp->fx_line);
+			return;
+		}
+		unsigned int location = 0x8000 + S_GET_VALUE(label);
+		unsigned char *where = fixp->fx_frag->fr_literal + fixp->fx_where;
+		bfd_put_bits(location, where, 24, true);
+		fixp->fx_done = 1;
+	} else {
+		as_bad_where (fixp->fx_file, fixp->fx_line,
                     _("stm8: don't know how to apply fix"));
+	}
 }
 
 valueT
@@ -255,13 +267,14 @@ int gethex(const char *str, int *out) {
 	int i;
 	for(i = 0; i <  strlen(str); i++) {
 		if(!isdigit(str[i]) &&
-		!(toupper(str[i]) >= 'a' && toupper(str[i]) <= 'b'))
+		!(toupper(str[i]) >= 'A' && toupper(str[i]) <= 'F'))
 			return 0;
 	}
 	sscanf(str, "%x", out);
 	return 1;
 }
 
+expressionS last_exp;
 /* In: argument
    Out: value
    Modifies: type */
@@ -272,8 +285,10 @@ int read_arg(char *str, stm8_arg_t *type) {
 	int value;
 	if(!str) return(ST8_END);
 	int length = strlen(str);
+	/* direct bytes */
 	if(getnumber(str, &value)) { RETURN(*type = ST8_BYTE); }
 
+	/* absolute address */
 	if(!memcmp(str, "0x", 2) || !memcmp(str, "#$", 2)) {
 		if(length-2 <= 2) *type = ST8_BYTE;
 		if(length-2 >= 3) *type = ST8_WORD;
@@ -289,25 +304,56 @@ int read_arg(char *str, stm8_arg_t *type) {
 			return(value);
 	}
 
+	/* registers */
 	if(!strcmp(str, "A")) { RETURN(*type = ST8_REG_A); }
 	if(!strcmp(str, "X")) { RETURN(*type = ST8_REG_X); }
 	if(!strcmp(str, "Y")) { RETURN(*type = ST8_REG_Y); }
 
-	/* The previous checks failed, trying to parse an expression...
-	   Also, the fixups can be generated here. */
+	/* relative address */
 	input_line_pointer = str;
-	expressionS ex;
-	expression(&ex);
-	if(ex.X_add_symbol) {
-		char *name = S_GET_NAME(ex.X_add_symbol);
-		value = ex.X_add_number;
+	expression(&last_exp);
+	if(last_exp.X_add_symbol) {
+		char *name = S_GET_NAME(last_exp.X_add_symbol);
+		value = last_exp.X_add_number;
 		if(!strcmp(name, "SP")) { RETURN(*type = ST8_SPREL); }
 		if(!strcmp(name, "PC")) { RETURN(*type = ST8_PCREL); }
+		if(last_exp.X_op == O_symbol) { RETURN(*type = ST8_SYMBOL); }
 	}
 
 	/* Can't parse an expression, notifying caller about that. */
 	*type = ST8_END;
 	return(0);
+}
+
+unsigned int bytes_count(unsigned int number) {
+	int i;
+	for(i = sizeof(int); i > 0; i--) {
+		if(number & 0xFF << (i-1)*8)
+			return(i);
+	}
+	return(1);
+}
+
+int compute_insn_size(struct stm8_opcodes_s opcode) {
+	int i, ret = 0;
+	for(i = 0; opcode.constraints[i] != ST8_END; i++) {
+		switch(opcode.constraints[i]) {
+			case ST8_SPREL:
+			case ST8_SHORTMEM:
+			case ST8_BYTE:
+				ret++;
+				break;
+			case ST8_LONGMEM:
+			case ST8_WORD:
+				ret += 2;
+				break;
+			case ST8_EXTMEM:
+				ret += 3;
+				break;
+		}
+	}
+	ret += bytes_count(opcode.bin_opcode);
+	return(ret);
 }
 
 int read_args(char *str, stm8_arg_t *types, int *values) {
@@ -326,17 +372,12 @@ int read_args(char *str, stm8_arg_t *types, int *values) {
 
 void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 	int i;
-	expressionS exp;
-	exp.X_op = O_constant;
 	frag++;
 	int where = frag - frag_now->fr_literal;
 	for(i = 0; i < count; i++) {
 		switch(spec[i]) {
-			/* Some of token types are for data output.
-			   The other ones are used when searching opcode. */
-			case ST8_FIXUP:
-				fix_new_exp(frag, where, 3,
-						&exp, FALSE, BFD_RELOC_32);
+			case ST8_SYMBOL:
+				fix_new_exp(frag_now, where, 3, &last_exp, FALSE, BFD_RELOC_32);
 				break;
 			case ST8_SPREL:
 			case ST8_SHORTMEM:
@@ -350,19 +391,26 @@ void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 			case ST8_EXTMEM:
 				bfd_put_bits(values[i], frag, 24, true);
 				break;
+			case ST8_REG_A:
+			case ST8_REG_X:
+			case ST8_REG_Y:
+				/* Don't need to output anything */
+				break;
 		}
 		frag++;
 	}
 }
 
-/* There are some opcodes that are longer than 1 byte */
-unsigned int bytes_count(unsigned int number) {
-	int i;
-	for(i = sizeof(int); i > 0; i--) {
-		if(number & 0xFF << (i-1)*8)
-			return(i);
+int cmpspec(stm8_arg_t *spec_a, stm8_arg_t *spec_b, int count) {
+	int i, ret = 0;
+	for(i = 0; i < count; i++) {
+		if(spec_a[i] == ST8_SYMBOL || spec_b[i] == ST8_SYMBOL)
+			continue; // ST8_SYMBOL matches any
+		if(!spec_a || !spec_b)
+			continue; // End
+		if(spec_a[i] != spec_b[i]) ret++;
 	}
-	return(1);
+	return(ret);
 }
 
 /* This is the guts of the machine-dependent assembler.  STR points to a
@@ -372,14 +420,14 @@ unsigned int bytes_count(unsigned int number) {
 void
 md_assemble (char *str)
 {
-char op[11];
-
-	struct stm8_opcodes_s *opcode;
+	char op[11];
+	char *t = input_line_pointer;
+	char *str_orig = strdup(str);
 	str = skip_space (extract_word (str, op, sizeof (op)));
 	stm8_arg_t spec[2];
 	int values[2];
 	int count = read_args(str, spec, values);
-	opcode = (struct stm8_opcodes_s *) hash_find (stm8_hash, op);
+	struct stm8_opcodes_s *opcode = (struct stm8_opcodes_s *) hash_find (stm8_hash, op);
 
 	if (opcode == NULL) {
 		as_bad (_("unknown opcode `%s'"), op);
@@ -388,14 +436,17 @@ char op[11];
 
 	int i;
 	for(i = 0; opcode[i].name != NULL; i++) {
-		if(!strcmp(opcode[i].constraints, spec)) {
-			char *frag = frag_more(opcode[i].insn_size);
-			int opcode_length = bytes_count(opcode->bin_opcode);
-			bfd_put_bits(opcode->bin_opcode, frag, opcode_length * 8, true);
+		if(!cmpspec(opcode[i].constraints, spec, count)) {
+			int insn_size = compute_insn_size(opcode[i]);
+			char *frag = frag_more(insn_size);
+			int opcode_length = bytes_count(opcode[i].bin_opcode);
+			bfd_put_bits(opcode[i].bin_opcode, frag, opcode_length * 8, true);
 			stm8_bfd_out(spec, values, count, frag);
 			break;
 		}
 	}
 	if(!opcode[i].name)
-		as_bad("Invalid instruction: %s", op);
+		as_bad("Invalid instruction: %s", str_orig);
+	input_line_pointer = t;
+	//free(str_orig);
 }

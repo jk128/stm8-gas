@@ -82,6 +82,8 @@ struct fix
   /* NULL or Symbol whose value we subtract.  */
   symbolS *fx_subsy;
 
+  symbolS *fx_label;
+
   /* Absolute number we add in.  */
   valueT fx_offset;
 
