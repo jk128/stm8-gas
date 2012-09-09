@@ -339,6 +339,7 @@ int compute_insn_size(struct stm8_opcodes_s opcode) {
 	for(i = 0; opcode.constraints[i] != ST8_END; i++) {
 		switch(opcode.constraints[i]) {
 			case ST8_SPREL:
+			case ST8_PCREL:
 			case ST8_SHORTMEM:
 			case ST8_BYTE:
 				ret++;
@@ -380,6 +381,7 @@ void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 				fix_new_exp(frag_now, where, 3, &last_exp, FALSE, BFD_RELOC_32);
 				break;
 			case ST8_SPREL:
+			case ST8_PCREL:
 			case ST8_SHORTMEM:
 			case ST8_BYTE:
 				bfd_put_bits(values[i], frag, 8, true);
