@@ -168,7 +168,7 @@ md_apply_fix (fixS *fixp, valueT *valp, segT segment ATTRIBUTE_UNUSED) {
 			fixp->fx_done = 1;
 		} else if(fixp->fx_r_type == BFD_RELOC_8) {
 			/* relative, shortmem */
-			unsigned int location = S_GET_VALUE(label) - fixp->fx_where;
+			int location = S_GET_VALUE(label) - fixp->fx_where - 1;
 			if(location > 0xFF)
 				as_bad(_("Jump is too far: %s\n"), label_name);
 			bfd_put_bits(location, where, 8, true);
@@ -381,34 +381,44 @@ int read_args(char *str, stm8_arg_t *types, int *values) {
 	return(count);
 }
 
-void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
+void stm8_bfd_out(struct stm8_opcodes_s op, stm8_arg_t *spec, int *values, int count, char *frag) {
 	int i;
 	for(i = 0; i < count; i++) {
 		frag++;
 		int where = frag - frag_now->fr_literal;
-		switch(spec[i]) {
-			case ST8_SYMBOL:
-				fix_new_exp(frag_now, where, 3, &last_exp, FALSE, BFD_RELOC_24);
-				break;
-			case ST8_SPREL:
-			case ST8_PCREL:
-			case ST8_SHORTMEM:
-			case ST8_BYTE:
-				bfd_put_bits(values[i], frag, 8, true);
-				break;
-			case ST8_LONGMEM:
-			case ST8_WORD:
-				bfd_putb16(values[i], frag);
-				break;
-			case ST8_EXTMEM:
-				bfd_put_bits(values[i], frag, 24, true);
-				break;
-			case ST8_REG_A:
-			case ST8_REG_X:
-			case ST8_REG_Y:
-				frag--;
-				/* Don't need to output anything */
-				break;
+		if(spec[i] == ST8_SYMBOL) {
+			/* A special case. We should postpone that until
+			   all symbols will be read. */
+			switch(op.constraints[i]) {
+				case ST8_EXTMEM:
+					fix_new_exp(frag_now, where, 3, &last_exp, FALSE, BFD_RELOC_24);
+					break;
+				case ST8_PCREL:
+					fix_new_exp(frag_now, where, 1, &last_exp, FALSE, BFD_RELOC_8);
+					break;
+			}
+		} else {
+			switch(spec[i]) {
+				case ST8_SPREL:
+				case ST8_PCREL:
+				case ST8_SHORTMEM:
+				case ST8_BYTE:
+					bfd_put_bits(values[i], frag, 8, true);
+					break;
+				case ST8_LONGMEM:
+				case ST8_WORD:
+					bfd_putb16(values[i], frag);
+					break;
+				case ST8_EXTMEM:
+					bfd_put_bits(values[i], frag, 24, true);
+					break;
+				case ST8_REG_A:
+				case ST8_REG_X:
+				case ST8_REG_Y:
+					frag--;
+					/* Don't need to output anything */
+					break;
+			}
 		}
 	}
 }
@@ -453,7 +463,7 @@ md_assemble (char *str)
 			char *frag = frag_more(insn_size);
 			int opcode_length = bytes_count(opcode[i].bin_opcode);
 			bfd_put_bits(opcode[i].bin_opcode, frag, opcode_length * 8, true);
-			stm8_bfd_out(spec, values, count, frag);
+			stm8_bfd_out(opcode[i], spec, values, count, frag);
 			break;
 		}
 	}
