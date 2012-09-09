@@ -372,9 +372,9 @@ int read_args(char *str, stm8_arg_t *types, int *values) {
 
 void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 	int i;
-	frag++;
 	int where = frag - frag_now->fr_literal;
 	for(i = 0; i < count; i++) {
+		frag++;
 		switch(spec[i]) {
 			case ST8_SYMBOL:
 				fix_new_exp(frag_now, where, 3, &last_exp, FALSE, BFD_RELOC_32);
@@ -394,10 +394,10 @@ void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 			case ST8_REG_A:
 			case ST8_REG_X:
 			case ST8_REG_Y:
+				frag--;
 				/* Don't need to output anything */
 				break;
 		}
-		frag++;
 	}
 }
 
