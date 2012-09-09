@@ -1,15 +1,23 @@
 {"nop", {ST8_END}, 0x9D},
 {"inc", {ST8_REG_A, ST8_END}, 0x4C},
+{"dec", {ST8_REG_A, ST8_END}, 0x4A},
 {"incw", {ST8_REG_X, ST8_END}, 0x5C},
 {"incw", {ST8_REG_Y, ST8_END}, 0x905C},
-/* logical operators */
+{"decw", {ST8_REG_X, ST8_END}, 0x5A},
+{"decw", {ST8_REG_Y, ST8_END}, 0x905A},
+/* bitwise operators */
 {"or", {ST8_REG_A, ST8_BYTE, ST8_END}, 0xAA},
 {"or", {ST8_REG_A, ST8_SPREL, ST8_END}, 0xBA},
 {"or", {ST8_REG_A, ST8_LONGMEM, ST8_END}, 0xCA},
+{"xor", {ST8_REG_A, ST8_BYTE, ST8_END}, 0xA8},
+{"xor", {ST8_REG_A, ST8_SPREL, ST8_END}, 0xB8},
+{"xor", {ST8_REG_A, ST8_LONGMEM, ST8_END}, 0xC8},
 /* ld / mov */
 {"ld", {ST8_REG_A, ST8_BYTE, ST8_END}, 0xA6},
+{"ld", {ST8_LONGMEM, ST8_REG_A, ST8_END}, 0xC7},
 {"ldw", {ST8_REG_X, ST8_WORD, ST8_END}, 0xAE},
 {"ldw", {ST8_REG_Y, ST8_WORD, ST8_END}, 0x90AE},
+{"movl", {ST8_BYTE, ST8_LONGMEM, ST8_END}, 0x35},
 /* comparison / jumps */
 {"cp", {ST8_REG_A, ST8_BYTE, ST8_END}, 0xA1},
 {"cpw", {ST8_REG_X, ST8_WORD, ST8_END}, 0xA3},
