@@ -160,10 +160,20 @@ md_apply_fix (fixS *fixp, valueT *valp, segT segment ATTRIBUTE_UNUSED) {
 			as_bad(_("Unknown label %s at line %d\n"), label_name, fixp->fx_line);
 			return;
 		}
-		unsigned int location = 0x8000 + S_GET_VALUE(label);
 		unsigned char *where = fixp->fx_frag->fr_literal + fixp->fx_where;
-		bfd_put_bits(location, where, 24, true);
-		fixp->fx_done = 1;
+		if(fixp->fx_r_type == BFD_RELOC_24) {
+			/* absolute, extmem */
+			unsigned int location = 0x8000 + S_GET_VALUE(label);
+			bfd_put_bits(location, where, 24, true);
+			fixp->fx_done = 1;
+		} else if(fixp->fx_r_type == BFD_RELOC_8) {
+			/* relative, shortmem */
+			unsigned int location = S_GET_VALUE(label) - fixp->fx_where;
+			if(location > 0xFF)
+				as_bad(_("Jump is too far: %s\n"), label_name);
+			bfd_put_bits(location, where, 8, true);
+			fixp->fx_done = 1;
+		}
 	} else {
 		as_bad_where (fixp->fx_file, fixp->fx_line,
                     _("stm8: don't know how to apply fix"));
@@ -373,12 +383,12 @@ int read_args(char *str, stm8_arg_t *types, int *values) {
 
 void stm8_bfd_out(stm8_arg_t *spec, int *values, int count, char *frag) {
 	int i;
-	int where = frag - frag_now->fr_literal;
 	for(i = 0; i < count; i++) {
 		frag++;
+		int where = frag - frag_now->fr_literal;
 		switch(spec[i]) {
 			case ST8_SYMBOL:
-				fix_new_exp(frag_now, where, 3, &last_exp, FALSE, BFD_RELOC_32);
+				fix_new_exp(frag_now, where, 3, &last_exp, FALSE, BFD_RELOC_24);
 				break;
 			case ST8_SPREL:
 			case ST8_PCREL:
