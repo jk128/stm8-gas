@@ -16,7 +16,6 @@ typedef enum {
 	ST8_SHORTMEM,
 	ST8_LONGMEM,
 	ST8_EXTMEM,
-	ST8_SPREL,
 	ST8_PCREL,
 	ST8_REG_A
 } stm8_arg_t;

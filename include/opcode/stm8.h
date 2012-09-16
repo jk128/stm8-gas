@@ -7,10 +7,10 @@
 {"decw", {ST8_REG_Y, ST8_END}, 0x905A},
 /* bitwise operators */
 {"or", {ST8_REG_A, ST8_BYTE, ST8_END}, 0xAA},
-{"or", {ST8_REG_A, ST8_SPREL, ST8_END}, 0xBA},
+{"or", {ST8_REG_A, ST8_SHORTMEM, ST8_END}, 0xBA},
 {"or", {ST8_REG_A, ST8_LONGMEM, ST8_END}, 0xCA},
 {"xor", {ST8_REG_A, ST8_BYTE, ST8_END}, 0xA8},
-{"xor", {ST8_REG_A, ST8_SPREL, ST8_END}, 0xB8},
+{"xor", {ST8_REG_A, ST8_SHORTMEM, ST8_END}, 0xB8},
 {"xor", {ST8_REG_A, ST8_LONGMEM, ST8_END}, 0xC8},
 /* ld / mov */
 {"ld", {ST8_REG_A, ST8_BYTE, ST8_END}, 0xA6},

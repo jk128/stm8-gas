@@ -325,7 +325,7 @@ int read_arg(char *str, stm8_arg_t *type) {
 	if(last_exp.X_add_symbol) {
 		char *name = S_GET_NAME(last_exp.X_add_symbol);
 		value = last_exp.X_add_number;
-		if(!strcmp(name, "SP")) { RETURN(*type = ST8_SPREL); }
+		if(!strcmp(name, "SP")) { RETURN(*type = ST8_SHORTMEM); }
 		if(!strcmp(name, "PC")) { RETURN(*type = ST8_PCREL); }
 		if(last_exp.X_op == O_symbol) { RETURN(*type = ST8_SYMBOL); }
 	}
@@ -348,7 +348,6 @@ int compute_insn_size(struct stm8_opcodes_s opcode) {
 	int i, ret = 0;
 	for(i = 0; opcode.constraints[i] != ST8_END; i++) {
 		switch(opcode.constraints[i]) {
-			case ST8_SPREL:
 			case ST8_PCREL:
 			case ST8_SHORTMEM:
 			case ST8_BYTE:
@@ -399,7 +398,6 @@ void stm8_bfd_out(struct stm8_opcodes_s op, stm8_arg_t *spec, int *values, int c
 			}
 		} else {
 			switch(spec[i]) {
-				case ST8_SPREL:
 				case ST8_PCREL:
 				case ST8_SHORTMEM:
 				case ST8_BYTE:
